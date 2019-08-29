@@ -1,0 +1,130 @@
+{meta {:name          "send-red-packet"
+       :description   "一个用于收发红包的扩展"
+       :documentation ""}
+;grab {:value "${token-num},${packet-num},${luck-checked?}" :params {:token-num token-num :packet-num packet-num :luck-checked? luck-checked?}}
+ views/preview
+ (let [{{{next-red-packet-id :next-red-packet-id token-num :token-num packet-num :packet-num luck-checked? :luck-checked?} :params} :content outgoing :outgoing} properties]
+  (if outgoing
+    [view
+     [touchable-opacity {:on-press [on-red-packet-clicked {:red-packet-id next-red-packet-id}]}
+      [image {:style { :width 140 :height 70 } :uri "https://asset.realscloud.com/public-read/000003Z0BE0000001Ce.w0.jpg"}]]]
+    [view
+     [touchable-opacity {:on-press [on-red-packet-clicked {:red-packet-id next-red-packet-id}]}
+      [image {:style { :width 140 :height 70 } :uri "https://asset.realscloud.com/public-read/000003Z0BE0000001Ce.w0.jpg"}]]]))
+   
+ views/short-preview
+ (let [{{{token-num :token-num packet-num :packet-num luck-checked? :luck-checked?} :params} :content outgoing :outgoing} properties]
+  (if outgoing
+    [view
+     [text "您收到一个红包"]]
+    [view
+     [text "您收到一个红包"]]))
+
+ events/on-red-packet-clicked
+ (let [{red-packet-id :red-packet-id} properties]
+  [ethereum/call {:to        "0x88Bcd4436eB2993dcA31A06EdeC376Db5eb5b5Ba" 
+                  :method    "fire(uint256,string)"
+                  :params    [red-packet-id "pwd"]
+                  :on-success [memorize-red-packet-clicked {:red-packet-id red-packet-id}]
+                  :on-failure [alert {:value "抢红包失败"}]}])
+
+ events/memorize-red-packet-clicked
+ (let [{red-packet-id :red-packet-id} properties]
+  [store/put {:key "fired_${red-packet-id}" :value true}]
+  [alert {:value "抢红包成功！"}])
+
+ events/on-token-num-change
+ (let [{value :value} properties]
+   [store/put {:key "token-num" :value value}])
+ 
+ events/on-packet-num-change
+ (let [{value :value} properties]
+   [store/put {:key "packet-num" :value value}])
+ 
+ events/on-luck-checked-change
+ (let [{value :value} properties]
+   [store/put {:key "luck-checked?" :value value}])
+ 
+ events/on-send
+ (let [{{{next-red-packet-id :next-red-packet-id token-num :token-num packet-num :packet-num luck-checked? :luck-checked?} :params} :content} properties]
+  ;[alert {:value "on-send=> token-num:${token-num} next-red-packet-id:${next-red-packet-id}"}]
+  [identity {:cb [get-eth-to-send {:next-red-packet-id next-red-packet-id :token-num token-num :packet-num packet-num :luck-checked? luck-checked?}]}])
+
+ events/get-eth-to-send
+ (let [{next-red-packet-id :next-red-packet-id token-num :token-num packet-num :packet-num luck-checked? :luck-checked?} properties]
+  ;[alert {:value "next-red-packet-id:${next-red-packet-id} token-num:${token-num}"}]
+  [arithmetic {
+  	            :operation :times
+  	            :values [token-num 1000000000000000000]
+  	            :on-result [create-red-packet {:next-red-packet-id next-red-packet-id :packet-num packet-num :luck-checked? luck-checked?}]}])
+
+ events/create-red-packet
+ (let [{token-num-in-wei :value next-red-packet-id :next-red-packet-id packet-num :packet-num luck-checked? :luck-checked?} properties]
+  [store/put {:key "next-red-packet-id" :value next-red-packet-id}]
+  ;[alert {:value "token-num-in-wei: ${token-num-in-wei} next-red-packet-id: ${next-red-packet-id} packet-num: ${packet-num} luck-checked?:${luck-checked?}"}]
+  [ethereum/send-transaction {
+                               :to "0x88Bcd4436eB2993dcA31A06EdeC376Db5eb5b5Ba"
+                               :method "newWar(uint8,uint16,string,string)"
+                               :params [0 packet-num "remark" "pwd"]
+                               :value     "${token-num-in-wei}"
+                               :on-success [on-new-war-success]
+                               :on-failure [on-new-war-failure]}])
+
+ events/on-new-war-success
+ (let [{transaction-id :value} properties]
+  [alert {:value "红包发送成功！交易id：${transaction-id}"}])
+ 
+ events/on-new-war-failure
+ (let [{transaction-id :value} properties]
+   [alert {:value "发送红包失败！交易id：${transaction-id}"}])
+
+ events/confirm-packet-info
+ (let [{token-num :token-num packet-num :packet-num luck-checked? :luck-checked?} properties]
+  [ethereum/call {:to        "0x88Bcd4436eB2993dcA31A06EdeC376Db5eb5b5Ba" 
+                  :method    "currRed()"
+                  :outputs   ["uint"]
+                  :on-success [on-get-current-red-packet-id {:token-num token-num :packet-num packet-num :luck-checked? luck-checked?}]}])
+
+ events/on-get-current-red-packet-id
+ (let [{[current-red-packet-id] :value token-num :token-num packet-num :packet-num luck-checked? :luck-checked?} properties]
+  ;[alert {:value "current-red-packet-id: ${current-red-packet-id} token-num: ${token-num}"}]
+  [arithmetic {
+  	            :operation :plus
+  	            :values [current-red-packet-id 1]
+  	            :on-result [save-custom-params {:token-num token-num :packet-num packet-num :luck-checked? luck-checked?}]}])
+
+ events/save-custom-params
+ (let [{next-red-packet-id :value token-num :token-num packet-num :packet-num luck-checked? :luck-checked?} properties]
+  [chat.command/set-parameter-with-custom-params {:value "包含${token-num}个eth的红包已生成(点击发送按钮发送)" :params {:next-red-packet-id next-red-packet-id :token-num token-num :packet-num packet-num :luck-checked? luck-checked?}}])
+
+ views/edit-red-packet-info
+ (let [token-num [store/get {:key "token-num"}] packet-num [store/get {:key "packet-num"}] luck-checked? [store/get {:key "luck-checked?"}]]
+   [view {:style {:padding 30 :padding-top 14 :background-color "#ff500a" :border-radius 4}}
+    [view {:style {:flex 1 :justify-content :center :align-items :center :margin-bottom 30}}
+     [text {:style {:color "#ffe7a0" :padding 4 :background-color "#ff500a" :text-align "center" :width 160}} "发红包"]
+     [view {:style {:height 1 :width 120 :background-color "#f8c483" :border-radius 20}}]]
+    [view{:style {:margin-bottom 20}}
+     [text {:style {:color "#fff" :margin-bottom 4}} "代币数量（eth）："]
+     [input {:style {:placeholder-text-color "rgba(255,255,255,0.7)"}:placeholder "eth" :on-change [on-token-num-change]}]
+     [view {:style {:height 1 :background-color "#fff"}}]]
+    [view {:style {:margin-bottom 20}}
+     [text {:style {:color "#fff" :margin-bottom 4}} "红包个数："]
+     [input {:style {:placeholder-text-color "rgba(255,255,255,0.7)"} :placeholder "packet-num" :on-change [on-packet-num-change]}]
+     [view {:style {:height 1 :background-color "#fff"}}]]
+    [view {:style {:flex-direction :row}}
+     [text {:style {:color "#fff"}} "手气红包："]
+     [checkbox {:checked luck-checked? :on-change [on-luck-checked-change] :style {:padding 10 :background-color "#ff500a"}}]]
+    [view {:style {:flex 1 :justify-content :center :align-items :center}}
+     [touchable-opacity {:on-press [confirm-packet-info {:value "${token-num},${packet-num},${luck-checked?}" :token-num token-num :packet-num packet-num :luck-checked? luck-checked?}]}
+      [text {:style {:color "#fff" :background-color "#ffb04d" :padding 120 :padding-top 8 :padding-bottom 8 :box-shadow "0px 0px 2px 2px #f8c483" :border-radius 2 :margin-top 60}} "生成红包消息"]]]])
+                                    
+ hooks/chat.command.send-red-packet
+ {:description   "Send a red packet"
+  :scope         #{:personal-chats :public-chats}
+  :preview       [preview]
+  :short-preview [short-preview]
+  :on-send       [on-send]
+  :parameters    [{:id          :id
+                   :type        :text
+                   :placeholder ""
+                   :suggestions [edit-red-packet-info]}]}}
