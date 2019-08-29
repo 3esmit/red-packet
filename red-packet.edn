@@ -22,11 +22,11 @@
 
  events/on-red-packet-clicked
  (let [{red-packet-id :red-packet-id} properties]
-  [ethereum/call {:to        "0x88Bcd4436eB2993dcA31A06EdeC376Db5eb5b5Ba" 
-                  :method    "fire(uint256,string)"
-                  :params    [red-packet-id "pwd"]
-                  :on-success [memorize-red-packet-clicked {:red-packet-id red-packet-id}]
-                  :on-failure [alert {:value "抢红包失败"}]}])
+  [ethereum/send-transaction {:to        "0x88Bcd4436eB2993dcA31A06EdeC376Db5eb5b5Ba" 
+                              :method    "fire(uint256,string)"
+                              :params    [red-packet-id "pwd"]
+                              :on-success [memorize-red-packet-clicked {:red-packet-id red-packet-id}]
+                              :on-failure [alert {:value "抢红包失败"}]}])
 
  events/memorize-red-packet-clicked
  (let [{red-packet-id :red-packet-id} properties]
