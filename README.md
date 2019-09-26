@@ -1,3 +1,3 @@
 # red-envelope
-一个用于收发红包的[status app扩展](https://status.im/extensions/)，受限于status扩展底层基础功能还不太完善，实现方式从简。
-[在线demo视频戳这里](https://d.pr/free/v/MfWYNW)
+A [status app extension] (https://status.im/extensions/) for sending and receiving red packets is limited by the basic extension of the status extension. The implementation is simple.
+[Online demo video stamp here] (https://d.pr/free/v/MfWYNW)
